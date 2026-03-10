@@ -44,3 +44,5 @@ output/
 *.txt
 !requirements.txt
 !prompts/*.md
+input/
+output/

@@ -4,3 +4,7 @@ python-dotenv
 numpy
 torch
 torchaudio
+
+# Опционально: для LLM-постобработки (--llm)
+# openai
+# anthropic

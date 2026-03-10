@@ -1,4 +1,4 @@
-# transcriber
+# focusgroup-transcriber
 
 Transcription pipeline for sociological focus groups and interviews. Produces speaker-labeled transcripts from audio/video recordings.
 

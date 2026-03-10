@@ -66,7 +66,8 @@ def run_diarization(waveform: torch.Tensor, sr: int, hf_token: str):
     )
     device = "cuda" if torch.cuda.is_available() else "cpu"
     pipeline.to(torch.device(device))
-    return pipeline({"waveform": waveform, "sample_rate": sr})
+    result = pipeline({"waveform": waveform, "sample_rate": sr})
+    return result.speaker_diarization
 
 
 def parse_transcript(path: str) -> list[dict]:
