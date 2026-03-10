@@ -1,0 +1,46 @@
+# Секреты
+.env
+*.key
+
+# Аудио/видео (тяжёлые)
+*.mp4
+*.mkv
+*.avi
+*.mov
+*.webm
+*.wav
+*.mp3
+*.ogg
+*.m4a
+
+# Модели (тяжёлые)
+*.pt
+*.bin
+*.onnx
+models/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Результаты (не коммитим чужие транскрипты)
+output/
+*.txt
+!requirements.txt
+!prompts/*.md
