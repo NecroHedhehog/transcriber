@@ -182,6 +182,22 @@ def interactive_menu() -> dict:
     elif choice == "3":
         if check_optional_dep("anthropic"):
             llm = "anthropic"
+    # 5.5. Тип записи и режим (если выбран LLM)
+    prompt_file = None
+    if llm:
+        print("\n--- Тип записи ---\n")
+        print("  1. Глубинное интервью (1-3 спикера)")
+        print("  2. Фокус-группа (4+ спикеров)")
+        choice = input("\nВыберите [1/2] (default: 1): ").strip()
+        record_type = "focus_group" if choice == "2" else "interview"
+
+        print("\n--- Режим транскрипта ---\n")
+        print("  1. Дословный — со словами-паразитами (для дискурс-анализа)")
+        print("  2. Чистовой — без паразитов (для контент-анализа)")
+        choice = input("\nВыберите [1/2] (default: 1): ").strip()
+        mode = "clean" if choice == "2" else "verbatim"
+
+        prompt_file = f"{record_type}_{mode}"
 
     # 6. Выходной файл
     base = os.path.splitext(os.path.basename(input_path))[0]
@@ -200,6 +216,7 @@ def interactive_menu() -> dict:
     print(f"  Язык:        {language}")
     print(f"  Диаризация:  {'Нет' if skip_diarize else 'Да (pyannote)'}")
     print(f"  LLM:         {llm or 'Нет'}")
+    print(f"  Промпт:      {prompt_file or 'Нет'}")
     print(f"  Результат:   {output}")
     print("-" * 60)
 
@@ -215,6 +232,7 @@ def interactive_menu() -> dict:
         "language": language,
         "llm": llm,
         "skip_diarize": skip_diarize,
+        "prompt_file": prompt_file,
     }
 
 
@@ -232,32 +250,20 @@ def ensure_wav(input_path: str) -> tuple:
         check=True, capture_output=True,
     )
     return wav_path, True
-    
-    elapsed = time.time() - start_time
-    print(f"  [{int(elapsed)}с] Аудио готово\n")
 
-def llm_postprocess(text: str, provider: str) -> str:
-    """Постобработка через LLM API."""
+def llm_postprocess(text: str, provider: str, prompt_file: str = None) -> str:
     from dotenv import load_dotenv
     load_dotenv()
 
-    prompt = (
-        "Ты — редактор транскриптов фокус-групп для социологических исследований.\n\n"
-        "Выполни следующие задачи:\n\n"
-        "1. ЗАМЕНА СПИКЕРОВ НА ИМЕНА\n"
-        "В начале записи участники представляются. Определи кто есть кто и замени "
-        "SPEAKER_XX на имена. Модератора обозначь как \"Модератор\". "
-        "Если имя не удаётся определить — оставь \"Респондент N\".\n\n"
-        "2. ЧИСТКА ТЕКСТА\n"
-        "- Расставь пунктуацию\n"
-        "- Исправь очевидные ошибки распознавания\n"
-        "- НЕ удаляй слова-паразиты — они важны для анализа\n"
-        "- НЕ добавляй слова которых не было\n\n"
-        "3. ФОРМАТ\n"
-        "Сохрани формат: Имя [ММ:СС]: текст реплики\n"
-        "Каждая реплика — отдельный абзац.\n\n"
-        "Вот транскрипт:\n\n"
-    )
+    # Читаем промпт из файла
+    prompts_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "prompts")
+    if prompt_file:
+        prompt_path = os.path.join(prompts_dir, f"{prompt_file}.txt")
+    else:
+        prompt_path = os.path.join(prompts_dir, "interview_verbatim.txt")
+
+    with open(prompt_path, "r", encoding="utf-8") as f:
+        prompt = f.read()
 
     if provider == "openai":
         from openai import OpenAI
@@ -293,7 +299,8 @@ def llm_postprocess(text: str, provider: str) -> str:
 
 
 def run(input_path: str, output_path: str, model: str = "large-v3",
-        language: str = "ru", llm: str = None, skip_diarize: bool = False):
+        language: str = "ru", llm: str = None, skip_diarize: bool = False,
+        prompt_file: str = None):
     """Полный пайплайн."""
 
     # Импортируем скрипты
@@ -346,7 +353,7 @@ def run(input_path: str, output_path: str, model: str = "large-v3",
         # LLM-постобработка
         if llm:
             print(f"\n--- Шаг {step}/{total_steps}: LLM-постобработка ({llm}) ---\n")
-            final_text = llm_postprocess(final_text, llm)
+            final_text = llm_postprocess(final_text, llm, prompt_file)
 
         with open(output_path, "w", encoding="utf-8") as f:
             f.write(final_text)
@@ -379,9 +386,12 @@ if __name__ == "__main__":
         parser.add_argument("-l", "--language", default="ru")
         parser.add_argument("--llm", choices=["openai", "anthropic"], default=None)
         parser.add_argument("--skip-diarize", action="store_true")
+        parser.add_argument("--type", choices=["interview", "focus_group"], default="interview")
+        parser.add_argument("--mode", choices=["verbatim", "clean"], default="verbatim")
         args = parser.parse_args()
+        prompt_file = f"{args.type}_{args.mode}" if args.llm else None
         run(args.input, args.output, args.model, args.language,
-            args.llm, args.skip_diarize)
+            args.llm, args.skip_diarize, prompt_file)
     else:
         # Без аргументов — интерактивное меню
         config = interactive_menu()
